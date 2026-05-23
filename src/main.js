@@ -19,8 +19,8 @@ const state = {
   screenSharing: false,
   handRaised: false,
   sidebarOpen: false,
-  sidebarTab: 'chat', // 'chat' | 'participants'
-  peers: new Map(),   // socketId -> { peerId, displayName, videoOn, audioOn, handRaised, stream }
+  sidebarTab: 'chat',
+  peers: new Map(),
   chatMessages: [],
   unreadCount: 0,
   startTime: null,
@@ -84,11 +84,7 @@ function renderLobby() {
     });
   });
 
-<<<<<<< HEAD
- $('create-room-btn').addEventListener('click', async () => {
-=======
-$('create-room-btn').addEventListener('click', async () => {
->>>>>>> 0ab37a0d36cf92bbf7822955eb0424171c15fc77
+  $('create-room-btn').addEventListener('click', async () => {
     const name = $('name-new').value.trim();
     if (!name) { showNotification('Please enter your name', 'warning'); $('name-new').focus(); return; }
     state.displayName = name;
@@ -317,11 +313,9 @@ function renderRoom() {
     <div class="notifications-container" id="notifications"></div>
   `;
 
-  // Add local video tile
   addLocalTile();
   updateGrid();
 
-  // Wire controls
   $('copy-room-id').addEventListener('click', () => {
     const url = `${location.origin}?room=${state.roomId}`;
     copyToClipboard(url).then(() => showNotification('Meeting link copied! Share it with others.', 'success'));
@@ -356,7 +350,6 @@ function renderRoom() {
     });
   });
 
-  // Sidebar tabs
   ['chat','participants'].forEach(tab => {
     $(`tab-btn-${tab}`).addEventListener('click', () => {
       state.sidebarTab = tab;
@@ -369,13 +362,11 @@ function renderRoom() {
     });
   });
 
-  // Chat
   $('chat-send').addEventListener('click', sendChat);
   $('chat-input').addEventListener('keydown', e => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
   });
 
-  // Timer
   state.startTime = Date.now();
   state.timerInterval = setInterval(() => {
     if ($('room-timer')) $('room-timer').textContent = formatTime(Date.now() - state.startTime);
@@ -490,7 +481,6 @@ function updateParticipantDots() {
 
 // ─── SOCKET CONNECTION ────────────────────────────────────────────────────
 function connectSocket() {
-  // Connect directly to the signaling server on port 4000
   const socket = io('https://nexmeet-2nts.onrender.com/', { transports: ['websocket', 'polling'] });
   state.socket = socket;
 
@@ -517,7 +507,6 @@ function connectSocket() {
     state.roomId = roomId;
     state.peerId = peerId;
     showNotification(`Joined meeting ${roomId}`, 'success');
-    // Call existing peers
     existingPeers.forEach(peer => {
       state.peers.set(peer.socketId, { peerId: peer.peerId, displayName: peer.displayName, videoOn: true, audioOn: true });
       addRemoteTile(peer.socketId, peer);
@@ -637,11 +626,8 @@ async function toggleScreen() {
       });
       const screenTrack = state.screenStream.getVideoTracks()[0];
       await state.pcManager.replaceTrack('video', screenTrack);
-
-      // Also update local video preview
       const localVideo = $('local-video');
       if (localVideo) localVideo.srcObject = state.screenStream;
-
       screenTrack.onended = () => stopScreenShare();
       state.screenSharing = true;
       $('btn-screen').classList.add('active');
@@ -658,13 +644,10 @@ async function stopScreenShare() {
   state.screenStream?.getTracks().forEach(t => t.stop());
   state.screenStream = null;
   state.screenSharing = false;
-
-  // Restore camera
   const camTrack = state.localStream?.getVideoTracks()[0];
   if (camTrack) await state.pcManager.replaceTrack('video', camTrack);
   const localVideo = $('local-video');
   if (localVideo) localVideo.srcObject = state.localStream;
-
   $('btn-screen').classList.remove('active');
   $('local-screen').classList.remove('visible');
   state.socket?.emit('screen-share-stopped');
@@ -704,11 +687,8 @@ function sendChat() {
 function addChatMessage({ from, displayName, message, timestamp, own }) {
   const container = $('chat-messages');
   if (!container) return;
-
-  // Remove empty state
   const empty = container.querySelector('.empty-state');
   if (empty) empty.remove();
-
   const div = document.createElement('div');
   div.className = `chat-message ${own ? 'own' : ''}`;
   div.innerHTML = `
@@ -745,8 +725,6 @@ function updateParticipantsList() {
   const list = $('participants-list');
   if (!list) return;
   list.innerHTML = '';
-
-  // Local
   const localItem = document.createElement('div');
   localItem.className = 'participant-item';
   localItem.innerHTML = `
@@ -758,8 +736,6 @@ function updateParticipantsList() {
     </div>
   `;
   list.appendChild(localItem);
-
-  // Remotes
   state.peers.forEach((info, socketId) => {
     const item = document.createElement('div');
     item.className = 'participant-item';
@@ -803,14 +779,11 @@ function endCall(silent = false) {
   state.pcManager?.closeAll();
   state.audioAnalyzer.detachAll();
   state.socket?.disconnect();
-
-  // Reset state
   Object.assign(state, {
     localStream: null, screenStream: null, roomId: null, peerId: null,
     peers: new Map(), chatMessages: [], unreadCount: 0, sidebarOpen: false,
     micOn: true, cameraOn: true, screenSharing: false, handRaised: false
   });
-
   room.style.display = 'none';
   room.innerHTML = '';
   lobby.style.display = 'flex';
