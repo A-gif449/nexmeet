@@ -11,10 +11,18 @@ const io = new Server(httpServer, {
   transports: ['websocket', 'polling']
 });
 
-const MAX_PARTICIPANTS = 4;
-const rooms = new Map(); // roomId -> Map<socketId, { peerId, displayName, joinedAt }>
+// ── CORS for Express routes ────────────────────────────────────────────────
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.sendStatus(200);
+  next();
+});
 
-// ── ROOT ROUTE (fixes browser error on Render) ─────────────────────────────
+const MAX_PARTICIPANTS = 4;
+const rooms = new Map();
+
 app.get('/', (_, res) => {
   res.json({
     status: '🚀 NexMeet Signaling Server is running',
@@ -25,7 +33,6 @@ app.get('/', (_, res) => {
 
 app.get('/health', (_, res) => res.json({ status: 'ok', rooms: rooms.size }));
 
-// Create a new room
 app.get('/create-room', (_, res) => {
   const roomId = uuidv4().slice(0, 8).toUpperCase();
   rooms.set(roomId, new Map());
@@ -35,7 +42,6 @@ app.get('/create-room', (_, res) => {
 io.on('connection', (socket) => {
   console.log(`[+] Socket connected: ${socket.id}`);
 
-  // ── JOIN ROOM ──────────────────────────────────────────────────────────────
   socket.on('join-room', ({ roomId, displayName }) => {
     const room = rooms.get(roomId);
     if (!room) {
@@ -47,7 +53,6 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // Add user to room
     const peerId = uuidv4();
     room.set(socket.id, { peerId, displayName: displayName || 'Guest', joinedAt: Date.now() });
     socket.join(roomId);
@@ -55,7 +60,6 @@ io.on('connection', (socket) => {
     socket.data.peerId = peerId;
     socket.data.displayName = displayName || 'Guest';
 
-    // Tell new user about existing peers
     const existingPeers = [];
     room.forEach((info, sid) => {
       if (sid !== socket.id) {
@@ -63,57 +67,26 @@ io.on('connection', (socket) => {
       }
     });
 
-    socket.emit('room-joined', {
-      roomId,
-      peerId,
-      existingPeers,
-      participantCount: room.size
-    });
-
-    // Tell existing users about new peer
-    socket.to(roomId).emit('peer-joined', {
-      socketId: socket.id,
-      peerId,
-      displayName: socket.data.displayName
-    });
-
+    socket.emit('room-joined', { roomId, peerId, existingPeers, participantCount: room.size });
+    socket.to(roomId).emit('peer-joined', { socketId: socket.id, peerId, displayName: socket.data.displayName });
     console.log(`[Room ${roomId}] ${displayName} joined. Participants: ${room.size}`);
   });
 
-  // ── WebRTC SIGNALING ───────────────────────────────────────────────────────
   socket.on('offer', ({ to, offer }) => {
-    io.to(to).emit('offer', {
-      from: socket.id,
-      peerId: socket.data.peerId,
-      displayName: socket.data.displayName,
-      offer
-    });
+    io.to(to).emit('offer', { from: socket.id, peerId: socket.data.peerId, displayName: socket.data.displayName, offer });
   });
 
   socket.on('answer', ({ to, answer }) => {
-    io.to(to).emit('answer', {
-      from: socket.id,
-      answer
-    });
+    io.to(to).emit('answer', { from: socket.id, answer });
   });
 
   socket.on('ice-candidate', ({ to, candidate }) => {
-    io.to(to).emit('ice-candidate', {
-      from: socket.id,
-      candidate
-    });
+    io.to(to).emit('ice-candidate', { from: socket.id, candidate });
   });
 
-  // ── MEDIA EVENTS ──────────────────────────────────────────────────────────
   socket.on('media-state', ({ video, audio }) => {
     const roomId = socket.data.roomId;
-    if (roomId) {
-      socket.to(roomId).emit('peer-media-state', {
-        socketId: socket.id,
-        video,
-        audio
-      });
-    }
+    if (roomId) socket.to(roomId).emit('peer-media-state', { socketId: socket.id, video, audio });
   });
 
   socket.on('screen-share-started', () => {
@@ -129,12 +102,7 @@ io.on('connection', (socket) => {
   socket.on('chat-message', ({ message }) => {
     const roomId = socket.data.roomId;
     if (!roomId) return;
-    io.to(roomId).emit('chat-message', {
-      from: socket.id,
-      displayName: socket.data.displayName,
-      message,
-      timestamp: Date.now()
-    });
+    io.to(roomId).emit('chat-message', { from: socket.id, displayName: socket.data.displayName, message, timestamp: Date.now() });
   });
 
   socket.on('raise-hand', ({ raised }) => {
@@ -147,7 +115,6 @@ io.on('connection', (socket) => {
     if (roomId) io.to(roomId).emit('peer-reaction', { socketId: socket.id, displayName: socket.data.displayName, emoji });
   });
 
-  // ── DISCONNECT ─────────────────────────────────────────────────────────────
   socket.on('disconnect', () => {
     const { roomId, displayName } = socket.data;
     if (roomId && rooms.has(roomId)) {
