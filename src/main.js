@@ -84,7 +84,11 @@ function renderLobby() {
     });
   });
 
+<<<<<<< HEAD
  $('create-room-btn').addEventListener('click', async () => {
+=======
+$('create-room-btn').addEventListener('click', async () => {
+>>>>>>> 0ab37a0d36cf92bbf7822955eb0424171c15fc77
     const name = $('name-new').value.trim();
     if (!name) { showNotification('Please enter your name', 'warning'); $('name-new').focus(); return; }
     state.displayName = name;
