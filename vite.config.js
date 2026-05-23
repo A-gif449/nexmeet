@@ -5,9 +5,9 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
-    proxy: {
-      '/create-room': 'http://localhost:4000',
-      '/health': 'http://localhost:4000',
-    }
+    // proxy: {
+    //   '/create-room': 'http://localhost:4000',
+    //   '/health': 'http://localhost:4000',
+    // }
   }
 })

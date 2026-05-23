@@ -14,6 +14,15 @@ const io = new Server(httpServer, {
 const MAX_PARTICIPANTS = 4;
 const rooms = new Map(); // roomId -> Map<socketId, { peerId, displayName, joinedAt }>
 
+// ── ROOT ROUTE (fixes browser error on Render) ─────────────────────────────
+app.get('/', (_, res) => {
+  res.json({
+    status: '🚀 NexMeet Signaling Server is running',
+    rooms: rooms.size,
+    maxParticipantsPerRoom: MAX_PARTICIPANTS
+  });
+});
+
 app.get('/health', (_, res) => res.json({ status: 'ok', rooms: rooms.size }));
 
 // Create a new room

@@ -84,12 +84,17 @@ function renderLobby() {
     });
   });
 
-  $('create-room-btn').addEventListener('click', async () => {
+ $('create-room-btn').addEventListener('click', async () => {
     const name = $('name-new').value.trim();
     if (!name) { showNotification('Please enter your name', 'warning'); $('name-new').focus(); return; }
     state.displayName = name;
-    const res = await fetch('/create-room').catch(() => null);
-    if (!res?.ok) { showNotification('Server offline. Start the signaling server first.', 'error', 6000); return; }
+    const btn = $('create-room-btn');
+    btn.disabled = true;
+    btn.textContent = '⏳ Starting...';
+    const res = await fetch('https://nexmeet-2nts.onrender.com/create-room').catch(() => null);
+    btn.disabled = false;
+    btn.textContent = '✦ Start New Meeting';
+    if (!res?.ok) { showNotification('Server offline. Please try again in a moment.', 'error', 6000); return; }
     const { roomId } = await res.json();
     state.roomId = roomId;
     showPrejoin();
@@ -482,7 +487,7 @@ function updateParticipantDots() {
 // ─── SOCKET CONNECTION ────────────────────────────────────────────────────
 function connectSocket() {
   // Connect directly to the signaling server on port 4000
-  const socket = io('http://localhost:4000', { transports: ['websocket', 'polling'] });
+  const socket = io('https://nexmeet-2nts.onrender.com/', { transports: ['websocket', 'polling'] });
   state.socket = socket;
 
   state.pcManager = new PeerConnectionManager({
