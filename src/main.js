@@ -84,12 +84,17 @@ function renderLobby() {
     });
   });
 
-  $('create-room-btn').addEventListener('click', async () => {
+$('create-room-btn').addEventListener('click', async () => {
     const name = $('name-new').value.trim();
     if (!name) { showNotification('Please enter your name', 'warning'); $('name-new').focus(); return; }
     state.displayName = name;
+    const btn = $('create-room-btn');
+    btn.disabled = true;
+    btn.textContent = '⏳ Starting...';
     const res = await fetch('https://nexmeet-2nts.onrender.com/create-room').catch(() => null);
-    if (!res?.ok) { showNotification('Server offline. Start the signaling server first.', 'error', 6000); return; }
+    btn.disabled = false;
+    btn.textContent = '✦ Start New Meeting';
+    if (!res?.ok) { showNotification('Server offline. Please try again in a moment.', 'error', 6000); return; }
     const { roomId } = await res.json();
     state.roomId = roomId;
     showPrejoin();
